@@ -1,0 +1,166 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Key Generator</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+        .container {
+            text-align: center;
+            background-color: #333;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #00b7eb;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            margin: 10px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #00a3cc;
+        }
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        #keyDisplay {
+            margin: 20px 0;
+            font-size: 18px;
+            color: #0f0;
+        }
+        #expirationMessage {
+            color: #f00;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Key Generator</h1>
+        <button id="getKeyButton" onclick="startCountdown()">Get Key</button>
+        <div id="keyDisplay"></div>
+        <div id="expirationMessage"></div>
+    </div>
+
+    <script>
+        const getKeyButton = document.getElementById("getKeyButton");
+        const keyDisplay = document.getElementById("keyDisplay");
+        const expirationMessage = document.getElementById("expirationMessage");
+        const youtubeChannelUrl = "https://www.youtube.com/@skibidipoplol"; // Replace with your YouTube channel URL
+        const countdownDuration = 20; // 20 seconds countdown
+        const keyExpirationHours = 24; // Key expires after 24 hours
+
+        // Function to generate a random 12-character key
+        function generateRandomKey() {
+            const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            let key = "";
+            for (let i = 0; i < 12; i++) {
+                key += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return key;
+        }
+
+        // Check if a key exists in localStorage and its expiration
+        function checkStoredKey() {
+            const storedKey = localStorage.getItem("generatedKey");
+            const expirationTime = localStorage.getItem("keyExpiration");
+
+            if (storedKey && expirationTime) {
+                const currentTime = Date.now();
+                if (currentTime < parseInt(expirationTime)) {
+                    // Key is still valid
+                    displayKey(storedKey);
+                    getKeyButton.disabled = true;
+                    getKeyButton.textContent = "Key Already Generated";
+                    const remainingTime = (parseInt(expirationTime) - currentTime) / 1000 / 3600;
+                    expirationMessage.textContent = `Key expires in ${remainingTime.toFixed(1)} hours`;
+                    return true;
+                } else {
+                    // Key has expired, clear it
+                    localStorage.removeItem("generatedKey");
+                    localStorage.removeItem("keyExpiration");
+                    expirationMessage.textContent = "Previous key has expired";
+                    getKeyButton.disabled = false;
+                    getKeyButton.textContent = "Get Key";
+                }
+            }
+            return false;
+        }
+
+        // Start the countdown and redirect to YouTube
+        function startCountdown() {
+            if (checkStoredKey()) return; // Don't start if a valid key already exists
+
+            // Redirect to YouTube channel
+            window.open(youtubeChannelUrl, "_blank");
+
+            let timeLeft = countdownDuration;
+            getKeyButton.disabled = true;
+            getKeyButton.textContent = `Wait for ${timeLeft}s`;
+
+            const countdownInterval = setInterval(() => {
+                timeLeft--;
+                getKeyButton.textContent = `Wait for ${timeLeft}s`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    generateKey();
+                }
+            }, 1000);
+        }
+
+        // Generate a new key and set expiration
+        function generateKey() {
+            const key = generateRandomKey();
+            const expirationTime = Date.now() + keyExpirationHours * 60 * 60 * 1000; // 24 hours in milliseconds
+
+            // Store the key and expiration in localStorage
+            localStorage.setItem("generatedKey", key);
+            localStorage.setItem("keyExpiration", expirationTime);
+
+            displayKey(key);
+            getKeyButton.disabled = true;
+            getKeyButton.textContent = "Key Generated";
+            expirationMessage.textContent = `Key expires in ${keyExpirationHours} hours`;
+        }
+
+        // Display the key and create the Copy Key button
+        function displayKey(key) {
+            keyDisplay.textContent = `Your Key: ${key}`;
+            const copyButton = document.createElement("button");
+            copyButton.textContent = "Copy Key";
+            copyButton.onclick = () => {
+                navigator.clipboard.writeText(key).then(() => {
+                    alert("Key copied to clipboard!");
+                }).catch(err => {
+                    console.error("Failed to copy key: ", err);
+                });
+            };
+            keyDisplay.appendChild(copyButton);
+        }
+
+        // Check for a stored key on page load
+        window.onload = () => {
+            checkStoredKey();
+        };
+    </script>
+</body>
+</html>
