@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -50,6 +49,11 @@
             color: #f00;
             font-size: 14px;
         }
+        #deviceId {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -58,45 +62,99 @@
         <button id="getKeyButton" onclick="startCountdown()">Get Key</button>
         <div id="keyDisplay"></div>
         <div id="expirationMessage"></div>
+        <div id="deviceId"></div>
     </div>
 
     <script>
         const getKeyButton = document.getElementById("getKeyButton");
         const keyDisplay = document.getElementById("keyDisplay");
         const expirationMessage = document.getElementById("expirationMessage");
-        const youtubeChannelUrl = "https://www.youtube.com/@skibidipoplol"; // Replace with your YouTube channel URL
+        const deviceIdDisplay = document.getElementById("deviceId");
+        const youtubeChannelUrl = "https://www.youtube.com/@skibidipoplol";
         const countdownDuration = 20; // 20 seconds countdown
         const keyExpirationHours = 24; // Key expires after 24 hours
 
-        // Function to generate a random 12-character key
-        function generateRandomKey() {
+        // Secret marker (keep this secret and match it in Roblox)
+        const MARKER = "LennyOnTop";
+
+        // Generate a simple device identifier
+        function generateDeviceId() {
+            const fingerprint = [
+                navigator.userAgent,
+                navigator.language,
+                screen.width + "x" + screen.height,
+                new Date().getTimezoneOffset()
+            ].join("-");
+            let hash = 0;
+            for (let i = 0; i < fingerprint.length; i++) {
+                const char = fingerprint.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(36).substring(0, 8);
+        }
+
+        const deviceId = generateDeviceId();
+        deviceIdDisplay.textContent = `Device ID: ${deviceId}`;
+
+        // Simple hash function to create a 4-character marker from "LennyOnTop"
+        function simpleHash(str) {
+            let hash = 0;
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash * 31) + str.charCodeAt(i)) & 0xFFFFFFFF;
+            }
+            let hashStr = "";
+            for (let i = 0; i < 4; i++) {
+                hash = ((hash * 17) + (hash % 13)) & 0xFFFF;
+                hashStr += chars.charAt(Math.abs(hash) % chars.length);
+            }
+            return hashStr;
+        }
+
+        // Generate a random 8-character base key
+        function generateBaseKey() {
             const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
             let key = "";
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < 8; i++) {
                 key += characters.charAt(Math.floor(Math.random() * characters.length));
             }
             return key;
         }
 
-        // Check if a key exists in localStorage and its expiration
-        function checkStoredKey() {
-            const storedKey = localStorage.getItem("generatedKey");
-            const expirationTime = localStorage.getItem("keyExpiration");
+        // Generate the full 12-character key with the marker
+        function generateKey() {
+            const baseKey = generateBaseKey(); // 8 characters
+            const markerHash = simpleHash(MARKER); // 4 characters
+            const fullKey = baseKey + markerHash; // 12 characters total
+            const expirationTime = Date.now() + keyExpirationHours * 60 * 60 * 1000;
 
-            if (storedKey && expirationTime) {
+            localStorage.setItem(`generatedKey_${deviceId}`, fullKey);
+            localStorage.setItem(`keyExpiration_${deviceId}`, expirationTime);
+
+            displayKey(fullKey);
+            getKeyButton.disabled = true;
+            getKeyButton.textContent = "Key Generated";
+            expirationMessage.textContent = `Key expires in ${keyExpirationHours} hours`;
+        }
+
+        // Check if a key exists locally
+        function checkStoredKey() {
+            const localKey = localStorage.getItem(`generatedKey_${deviceId}`);
+            const localExpiration = localStorage.getItem(`keyExpiration_${deviceId}`);
+
+            if (localKey && localExpiration) {
                 const currentTime = Date.now();
-                if (currentTime < parseInt(expirationTime)) {
-                    // Key is still valid
-                    displayKey(storedKey);
+                if (currentTime < parseInt(localExpiration)) {
+                    displayKey(localKey);
                     getKeyButton.disabled = true;
                     getKeyButton.textContent = "Key Already Generated";
-                    const remainingTime = (parseInt(expirationTime) - currentTime) / 1000 / 3600;
+                    const remainingTime = (parseInt(localExpiration) - currentTime) / 1000 / 3600;
                     expirationMessage.textContent = `Key expires in ${remainingTime.toFixed(1)} hours`;
                     return true;
                 } else {
-                    // Key has expired, clear it
-                    localStorage.removeItem("generatedKey");
-                    localStorage.removeItem("keyExpiration");
+                    localStorage.removeItem(`generatedKey_${deviceId}`);
+                    localStorage.removeItem(`keyExpiration_${deviceId}`);
                     expirationMessage.textContent = "Previous key has expired";
                     getKeyButton.disabled = false;
                     getKeyButton.textContent = "Get Key";
@@ -107,9 +165,8 @@
 
         // Start the countdown and redirect to YouTube
         function startCountdown() {
-            if (checkStoredKey()) return; // Don't start if a valid key already exists
+            if (checkStoredKey()) return;
 
-            // Redirect to YouTube channel
             window.open(youtubeChannelUrl, "_blank");
 
             let timeLeft = countdownDuration;
@@ -125,21 +182,6 @@
                     generateKey();
                 }
             }, 1000);
-        }
-
-        // Generate a new key and set expiration
-        function generateKey() {
-            const key = generateRandomKey();
-            const expirationTime = Date.now() + keyExpirationHours * 60 * 60 * 1000; // 24 hours in milliseconds
-
-            // Store the key and expiration in localStorage
-            localStorage.setItem("generatedKey", key);
-            localStorage.setItem("keyExpiration", expirationTime);
-
-            displayKey(key);
-            getKeyButton.disabled = true;
-            getKeyButton.textContent = "Key Generated";
-            expirationMessage.textContent = `Key expires in ${keyExpirationHours} hours`;
         }
 
         // Display the key and create the Copy Key button
